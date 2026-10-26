@@ -4,9 +4,34 @@
 .box{background:#1d2630;border:3px solid #fc0;padding:24px;border-radius:10px;max-width:640px;max-height:92vh;overflow:auto;text-align:center;box-sizing:border-box;margin:8px}
 button{min-height:48px;min-width:140px;background:#fc0;border:0;padding:10px 18px;font-size:16px;border-radius:6px;cursor:pointer;margin:6px;font-weight:bold}
 .card{display:inline-block;width:170px;min-height:90px;font-size:16px;vertical-align:top;background:#2b3846;border:2px solid #fc0;border-radius:8px;padding:10px;margin:6px;cursor:pointer}
-.card:hover{background:#3d5166}ul{text-align:left}</style></head><body>
-<canvas id="c"></canvas><div id="ov"></div>
+.card.shop{width:200px;max-width:calc(50% - 14px);box-sizing:border-box;padding:8px;margin:4px}.card button{width:100%;min-width:0;margin:6px 0 0}.box.wide{max-width:960px;width:94vw;padding:12px}button:disabled{background:#666;color:#aaa}.card:hover{background:#3d5166}ul{text-align:left}</style></head><body>
+<canvas id="c"></canvas><div id="ov"></div><button id="cartBtn" onclick="toggleCart()" style="position:fixed;right:18px;bottom:18px;display:none;z-index:5;font-size:28px;min-width:64px;min-height:64px;border-radius:50%">🛒</button>
 <script>
+const SHOP=[
+{id:'gloves',n:'🧤 Better Gloves',d:l=>'+'+l+' carry capacity',max:5,c:40,g:1.6},
+{id:'shoes',n:'👟 Better Shoes',d:l=>'+'+(l*6)+'% move speed',max:5,c:40,g:1.6},
+{id:'mop',n:'🧽 Better Mop',d:l=>'+'+(l*20)+'% mop speed',max:5,c:35,g:1.6},
+{id:'squeegee',n:'🧹 Squeegee / Wet Vac',d:l=>'+'+(l*8)+' mop reach',max:3,c:80,g:1.8},
+{id:'kneepads',n:'🦵 Kneepads',d:l=>'+'+(l*25)+'% motor decon speed',max:4,c:50,g:1.6},
+{id:'bigbags',n:'🛍️ Bigger Bags',d:l=>'+'+(l*15)+'% XP per DAW drop',max:4,c:60,g:1.7},
+{id:'seniority',n:'📜 Seniority',d:l=>'+'+(l*8)+'% all XP',max:5,c:70,g:1.7},
+{id:'coffee',n:'☕ Coffee',d:l=>'+'+(l*12)+'% speed for first 60s',max:3,c:30,g:1.8},
+{id:'tyvek',n:'🥼 Better Tyvek',d:l=>'-'+(l*12)+'% dose taken',max:4,c:60,g:1.7},
+{id:'training',n:'🎓 Dosimetry Training',d:l=>'ED set points '+(10+l*5)+' mR / '+(100+l*50)+' mR/hr',max:3,c:120,g:1.8},
+{id:'rpbuddy',n:'🧑‍🔬 RP Buddy',d:l=>'-'+(l*25)+'% XP lost on ED reset',max:3,c:50,g:1.7},
+{id:'cart',n:'🛒 Laundry Cart',d:l=>l?'Owned: press C / tap 🛒 to grab or park':'Start every shift with a cart (8+ bags)',max:1,c:750,g:1}];
+let META;try{META=JSON.parse(localStorage.getItem('deconMeta'))}catch(e){}META=META||{pay:0,lv:{},shifts:0};
+const saveMeta=()=>{try{localStorage.setItem('deconMeta',JSON.stringify(META))}catch(e){}};
+const ML=id=>META.lv[id]||0,cost=it=>Math.round(it.c*Math.pow(it.g,ML(it.id)));
+function applyMeta(){const u=S.up;u.cap+=ML('gloves');u.spd*=1+.06*ML('shoes');u.mop*=1+.2*ML('mop');u.decon*=1+.25*ML('kneepads');
+S.reach=4+8*ML('squeegee');S.doseMul=1-.12*ML('tyvek');S.sp1=10+5*ML('training');S.sp2=100+50*ML('training');S.xpMul=1+.08*ML('seniority');S.bagMul=1+.15*ML('bigbags');S.coffee=.12*ML('coffee');S.rpMul=1-.25*ML('rpbuddy');S.hasCart=ML('cart')>0}
+function toggleCart(){if(!S.hasCart||S.paused)return;const u=S.up;if(u.cart){u.cart=false;u.cap=u.cap0||u.cap;float(S.p.x,S.p.y-30,'Cart parked','#ccc')}else{u.cap0=u.cap;u.cart=true;u.cap=Math.max(8,u.cap+4);float(S.p.x,S.p.y-30,'🛒 Cart!','#fc0')}}
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='c')toggleCart()});
+function shop(from){S.paused=true;const it=SHOP.map(i=>{const l=ML(i.id),mx=l>=i.max,c=cost(i),ok=!mx&&META.pay>=c;
+return`<div class="card shop"><h3>${i.n}</h3><div>Lv ${l}/${i.max}</div><p>${i.d(Math.max(l,mx?l:l+1))}${mx?'':l?' (next)':''}</p><button ${ok?'':'disabled'} onclick="buy('${i.id}','${from}')">${mx?'MAXED':'💵 '+c}</button></div>`}).join('');
+OV.innerHTML=`<div class="box wide"><h1>🏪 Outage Shop</h1><h2>💵 Outage Pay: ${META.pay}</h2><div>${it}</div><button style="font-size:20px" onclick="${from==='end'?'start()':'title()'}">${from==='end'?'▶ Next Shift':'◀ Back'}</button>
+<details style="margin-top:14px;opacity:.6"><summary>Settings</summary><button style="background:#a33;color:#fff" onclick="if(confirm('Reset ALL progress?')){META={pay:0,lv:{},shifts:0};saveMeta();shop('${from}')}">Reset progress</button></details></div>`;OV.style.display='flex'}
+function buy(id,from){const i=SHOP.find(s=>s.id===id),c=cost(i);if(META.pay<c||ML(id)>=i.max)return;META.pay-=c;META.lv[id]=ML(id)+1;saveMeta();shop(from)}
 const C=document.getElementById('c');let X=C.getContext('2d');const OV=document.getElementById('ov');
 const W=1100,H=700,SHIFT=300;
 const walls=[[0,0,W,12],[0,H-12,W,12],[0,0,12,H],[W-12,0,12,H],
@@ -27,14 +52,14 @@ dose:0,rate:0,alarm:false,stats:{bags:0,spills:0,motors:0,alarms:0},
 up:{spd:1,cap:2,carrySpd:0.7,mop:1,decon:1,push:0,cart:false},
 spawnT:0,spillT:3,motorT:40,paused:true,floats:[],over:false};
 for(let i=0;i<5;i++)S.workers.push({x:400+Math.random()*300,y:300+Math.random()*200,vx:0,vy:0,t:0});
-for(let i=0;i<4;i++)spawnItem();}
+for(let i=0;i<4;i++)spawnItem();applyMeta()}
 function solid(x,y,r){if(x<r||y<r||x>W-r||y>H-r)return true;for(const w of walls)if(x+r>w[0]&&x-r<w[0]+w[2]&&y+r>w[1]&&y-r<w[1]+w[3])return true;return false}
 function freeSpot(r=14){let x,y;do{x=30+Math.random()*(W-60);y=30+Math.random()*(H-60)}while(solid(x,y,r)||inR({x,y},DAW,30)||inR({x,y},RP,30));return{x,y}}
 function inR(p,a,m=0){return p.x>a.x-m&&p.x<a.x+a.w+m&&p.y>a.y-m&&p.y<a.y+a.h+m}
 function spawnItem(){const s=freeSpot();S.items.push({...s,type:Math.random()<.55?'trash':'laundry'})}
 function spawnSpill(){const s=freeSpot();S.spills.push({...s,r:16+Math.random()*10,prog:0,age:0})}
 function float(x,y,txt,col='#fc0'){S.floats.push({x,y,txt,col,t:1.2})}
-function gainXP(n,x,y){S.xp+=n;float(x,y,'+'+n+' XP');while(S.xp>=S.next){S.xp-=S.next;S.lvl++;S.next=Math.round(S.next*1.35+3);levelUp()}}
+function gainXP(n,x,y){n=Math.round(n*(S.xpMul||1));S.xp+=n;float(x,y,'+'+n+' XP');while(S.xp>=S.next){S.xp-=S.next;S.lvl++;S.next=Math.round(S.next*1.35+3);levelUp()}}
 const UPS=[
 {id:'spd',n:'👟 Fast Feet',d:'+15% move speed',ok:()=>1,f:()=>S.up.spd*=1.15},
 {id:'cap',n:'🎒 Bigger Arms',d:'+1 bag carry capacity',ok:()=>!S.up.cart,f:()=>S.up.cap++},
@@ -57,7 +82,7 @@ S.motorT-=dt;if(S.motorT<=0&&!S.motor){const s=freeSpot(24);S.motor={...s,prog:0
 let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);
 if(joy){const jx=joy.x-joy.ox,jy=joy.y-joy.oy,jl=Math.hypot(jx,jy);if(jl>8){const m=Math.min(1,jl/60);dx=jx/jl*m;dy=jy/jl*m}}
 {const m=Math.min(1,Math.hypot(dx,dy));const r=screenToWorld(dx,dy);dx=r[0]*m;dy=r[1]*m}
-let sp=170*u.spd*(p.carry.length?u.carrySpd:1)*(u.cart?0.85:1);
+let sp=170*u.spd*(S.t<60?1+S.coffee:1)*(p.carry.length?u.carrySpd:1)*(u.cart?0.85:1);
 p.vx=p.vx||0;p.vy=p.vy||0;const acc=u.cart?3:14;p.vx+=(dx*sp-p.vx)*Math.min(1,acc*dt);p.vy+=(dy*sp-p.vy)*Math.min(1,acc*dt);
 const pr=u.cart?18:p.r;
 if(!solid(p.x+p.vx*dt,p.y,pr))p.x+=p.vx*dt;if(!solid(p.x,p.y+p.vy*dt,pr))p.y+=p.vy*dt;
@@ -71,25 +96,26 @@ else{p.x+=nx*o;p.y+=ny*o;p.vx*=u.cart?.2:.5;p.vy*=u.cart?.2:.5}}}
 if(S.workers.length<5+S.t/50)S.workers.push({...freeSpot(),vx:0,vy:0,t:0});
 // pickup
 for(let i=S.items.length-1;i>=0;i--){const it=S.items[i];if(Math.hypot(it.x-p.x,it.y-p.y)<pr+12&&p.carry.length<u.cap){p.carry.push(it.type);S.items.splice(i,1)}}
-if(inR(p,DAW)&&p.carry.length){const n=p.carry.length;const xp=p.carry.reduce((a,t)=>a+(t==='laundry'?2:1),0)+(n>=4?Math.floor(n/2):0);S.stats.bags+=n;p.carry=[];gainXP(xp,p.x,p.y-20);spark(p.x,p.y,'#ffd400',14)}
+if(inR(p,DAW)&&p.carry.length){const n=p.carry.length;const xp=p.carry.reduce((a,t)=>a+(t==='laundry'?2:1),0)+(n>=4?Math.floor(n/2):0);const xp2=Math.round(xp*S.bagMul);S.stats.bags+=n;p.carry=[];gainXP(xp2,p.x,p.y-20);spark(p.x,p.y,'#ffd400',14)}
 // spills: mop
 for(let i=S.spills.length-1;i>=0;i--){const s=S.spills[i];s.age+=dt;if(s.age>40&&s.r<40){s.r+=dt*0.3}
-if(Math.hypot(s.x-p.x,s.y-p.y)<s.r+4&&!u.cart){if(Math.random()<dt*12)spark(s.x,s.y,'#bfe8ff',3);s.prog+=dt*u.mop*(30/s.r)*0.55;if(s.prog>=1){S.spills.splice(i,1);S.stats.spills++;gainXP(3,s.x,s.y)}}}
+if(Math.hypot(s.x-p.x,s.y-p.y)<s.r+S.reach&&!u.cart){if(Math.random()<dt*12)spark(s.x,s.y,'#bfe8ff',3);s.prog+=dt*u.mop*(30/s.r)*0.55;if(s.prog>=1){S.spills.splice(i,1);S.stats.spills++;gainXP(3,s.x,s.y)}}}
 if(S.motor){const m=S.motor;if(Math.hypot(m.x-p.x,m.y-p.y)<pr+28){m.prog+=dt*u.decon;if(m.prog>=m.need){S.motor=null;S.stats.motors++;gainXP(15,m.x,m.y);spark(m.x,m.y,'#f80',20)}}}
 // dose
 let rate=0.5;for(const h of hot){const d=Math.hypot(h.x-p.x,h.y-p.y);if(d<h.r)rate+=h.rate*(1-d/h.r*.6);else if(d<h.r*1.6)rate+=h.rate*.08}
-S.rate=rate;S.dose+=rate*dt/3600*12; // 12x time compression
-if(!S.alarm&&(S.dose>=10||rate>=100)){S.alarm=true;S.stats.alarms++;float(p.x,p.y-30,'ED ALARM! 🚨 Go see RP','#f44');S.alarmDoseBase=S.dose}
-if(S.alarm&&inR(p,RP)){S.alarm=false;const lost=Math.min(S.xp,Math.ceil(S.next*.4));S.xp-=lost;float(p.x,p.y-30,'ED reset. -'+lost+' XP. Stay ALARA!','#f88');if(S.dose>=10)S.dose10=(S.dose10||0)+1}
+S.rate=rate;S.dose+=rate*S.doseMul*dt/3600*12; // 12x time compression
+if(!S.alarm&&(S.dose>=S.sp1||rate>=S.sp2)){S.alarm=true;S.stats.alarms++;float(p.x,p.y-30,'ED ALARM! 🚨 Go see RP','#f44');S.alarmDoseBase=S.dose}
+if(S.alarm&&inR(p,RP)){S.alarm=false;const lost=Math.min(S.xp,Math.ceil(S.next*.4*S.rpMul));S.xp-=lost;float(p.x,p.y-30,'ED reset. -'+lost+' XP. Stay ALARA!','#f88');if(S.dose>=S.sp1)S.dose10=(S.dose10||0)+1}
 for(const f of S.floats){f.t-=dt;f.y-=30*dt}S.floats=S.floats.filter(f=>f.t>0)}
 function endShift(){S.paused=true;S.over=true;const dose=S.dose,alara=dose<3?500:dose<6?250:dose<10?100:0;
+const pay=Math.round(S.stats.bags*2+S.stats.spills*4+S.stats.motors*15+alara/25+S.lvl*2);META.pay+=pay;META.shifts++;saveMeta();
 const score=S.stats.bags*10+S.stats.spills*25+S.stats.motors*100+S.lvl*50+alara-S.stats.alarms*100;
 OV.innerHTML=`<div class="box"><h1>🔔 END OF SHIFT</h1><table style="margin:auto;font-size:18px;text-align:left">
 <tr><td>🗑️ Bags hauled to DAW</td><td>${S.stats.bags}</td></tr><tr><td>🧽 Spills mopped</td><td>${S.stats.spills}</td></tr>
 <tr><td>⚙️ Motors decon'd</td><td>${S.stats.motors}</td></tr><tr><td>⭐ Level reached</td><td>${S.lvl}</td></tr>
 <tr><td>☢️ Total dose</td><td>${dose.toFixed(2)} mR</td></tr><tr><td>🚨 ED alarms</td><td>${S.stats.alarms}</td></tr>
 <tr><td>🏅 ALARA bonus</td><td>${alara}</td></tr><tr><td><b>SCORE</b></td><td><b>${score}</b></td></tr></table>
-<p>${alara>=500?'RP is proud of you. Textbook ALARA.':alara?'Decent dose management.':'RP wants a word with you...'}</p><button onclick="start()">Work another shift</button></div>`;OV.style.display='flex'}
+<p>${alara>=500?'RP is proud of you. Textbook ALARA.':alara?'Decent dose management.':'RP wants a word with you...'}</p><h2>💵 Outage Pay earned: +${pay} (bank: ${META.pay})</h2><button onclick="shop('end')" style="font-size:20px">🏪 Shop</button><button onclick="start()">Work another shift</button></div>`;OV.style.display='flex'}
 const IX=0.72,IY=0.36,WH=30;let DPR=1,VW=0,VH=0,ZM=1,camX=0,camY=0,floorC=null;
 function iso(x,y,z=0){return[(x-y)*IX,(x+y)*IY-z]}
 function poly(pts,fill,stroke){X.beginPath();X.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)X.lineTo(pts[i][0],pts[i][1]);X.closePath();X.fillStyle=fill;X.fill();if(stroke){X.strokeStyle=stroke;X.stroke()}}
@@ -119,34 +145,46 @@ const SPS=3,SPW=44,SPH=72,sprCache={};
 const STY={player:{suit:'#f2f2ef',hood:'#f6cf26',cuff:'#f6cf26',boot:'#f6cf26',glove:'#f4f4f2'},rp:{suit:'#3a7bd5',hat:'#ffffff',cuff:'#2a5aa5',boot:'#333333',glove:'#eeeeee'}};
 const WCOL=[['#e67e22','#f5d000'],['#27ae60','#ffffff'],['#8e44ad','#f5d000'],['#2980b9','#e74c3c'],['#c0392b','#ffffff'],['#16a085','#f39c12']];
 WCOL.forEach((c,i)=>STY['w'+i]={suit:c[0],hat:c[1],cuff:shade(c[0],-.3).replace(/rgb\((\d+),(\d+),(\d+)\)/,(m,r,g,b)=>'#'+[r,g,b].map(v=>(+v).toString(16).padStart(2,'0')).join('')),boot:'#5a3a20',glove:'#dddddd'});
-function drawChibi(g,s,fr){const sw=Math.sin(fr/8*6.283)*(fr<0?0:1),L=sw*3.2;
+function drawChibi(g,s,fr,dir){const mv=fr>=0,sw=mv?Math.sin(fr/8*6.283):0,L=sw*3.2,side=dir==='s',up=dir==='u';
 g.save();g.translate(SPW/2,SPH-3);
-// legs + boots
-for(const [side,o] of [[-1,-L],[1,L]]){fbox(g,side*5-3.5,-15+Math.max(0,-o)*.3,7,9,s.suit);fbox(g,side*5-4.5+o*.4,-7,9,7,s.boot)}
-// body
-facet(g,0,-20,10,9,7,s.suit,.3);g.strokeStyle='rgba(0,0,0,.12)';g.lineWidth=.8;g.beginPath();g.moveTo(0,-28);g.lineTo(0,-13);g.stroke();
-// arms
-for(const [side,o] of [[-1,L],[1,-L]]){const ax=side*11,ay=-21+o*.3;fbox(g,ax-3,ay-5,6,9,s.suit);fbox(g,ax-3.3,ay+3,6.6,2.4,s.cuff);facet(g,ax,ay+7.5,3.4,3,6,s.glove)}
-// head
-if(s.hood){facet(g,0,-41,15.5,15,9,s.hood,.1);facet(g,0,-39.5,11,10,8,'#f2d2b4',.2,[0,-.2])}
-else{facet(g,0,-39.5,12,11,8,'#f2d2b4',.2,[0,-.2]);facet(g,0,-47,13.5,7,8,s.hat,3.14,[0,.4]);fbox(g,-15,-46,30,3,s.hat)}
-// face
-for(const ex of [-4.6,4.6]){g.fillStyle='#1b1b22';g.beginPath();g.ellipse(ex,-38,2.3,2.9,0,0,7);g.fill();g.fillStyle='#fff';g.beginPath();g.arc(ex+.8,-39.2,.9,0,7);g.fill();
-g.fillStyle='rgba(255,120,140,.55)';g.beginPath();g.ellipse(ex*1.45,-33.8,2.2,1.4,0,0,7);g.fill()}
-g.strokeStyle='#5a2a2a';g.lineWidth=.8;g.beginPath();g.arc(0,-34.5,1.8,.3,2.84);g.stroke();
+const skin='#f2d2b4';
+if(side){ // profile facing right
+ for(const o of [-L,L]){const back=o===-L;fbox(g,-3.5+o*.6,-15,7,9,back?shade(s.suit,-.12):s.suit);fbox(g,-4+o*1.1,-7,10,7,back?shade(s.boot,-.15):s.boot)}
+ const ab=-L;fbox(g,-3+ab*.9,-26,6,9,shade(s.suit,-.15));
+ facet(g,0,-20,8,9,7,s.suit,.3);
+ const ax=L*.9;fbox(g,-3+ax,-26,6,9,s.suit);fbox(g,-3.3+ax,-18,6.6,2.4,s.cuff);facet(g,ax,-14,3.4,3,6,s.glove);
+ if(s.hood){facet(g,-1,-41,14.5,15,9,s.hood,.1);facet(g,4,-39.5,8,10,7,skin,.2,[.2,-.2])}
+ else{facet(g,0,-39.5,11.5,11,8,skin,.2,[0,-.2]);facet(g,-6,-43,7,8,7,'#5a3b28',.4);facet(g,0,-47,13,7,8,s.hat,3.14,[0,.4]);fbox(g,-12,-46,28,3,s.hat)}
+ g.fillStyle='#1b1b22';g.beginPath();g.ellipse(6.5,-38,2,2.8,0,0,7);g.fill();g.fillStyle='#fff';g.beginPath();g.arc(7.1,-39.2,.8,0,7);g.fill();
+ g.fillStyle='rgba(255,120,140,.55)';g.beginPath();g.ellipse(5,-33.8,2,1.3,0,0,7);g.fill();
+ g.strokeStyle='#5a2a2a';g.lineWidth=.8;g.beginPath();g.arc(9,-34.5,1.4,.6,2.2);g.stroke();
+}else{
+ for(const [sd,o] of [[-1,-L],[1,L]]){fbox(g,sd*5-3.5,-15+Math.max(0,o)*.4,7,9-Math.max(0,o)*.4,s.suit);fbox(g,sd*5-4.5,-7-Math.max(0,o)*.5,9,7,s.boot)}
+ facet(g,0,-20,10,9,7,s.suit,.3);
+ if(!up){g.strokeStyle='rgba(0,0,0,.12)';g.lineWidth=.8;g.beginPath();g.moveTo(0,-28);g.lineTo(0,-13);g.stroke()}
+ for(const [sd,o] of [[-1,L],[1,-L]]){const ax=sd*11,ay=-21-o*.5;fbox(g,ax-3,ay-5,6,9,s.suit);fbox(g,ax-3.3,ay+3,6.6,2.4,s.cuff);facet(g,ax,ay+7.5,3.4,3,6,s.glove)}
+ if(up){if(s.hood){facet(g,0,-41,15.5,15,9,s.hood,.1);g.strokeStyle=shade(s.hood,-.25);g.lineWidth=.8;g.beginPath();g.moveTo(0,-54);g.lineTo(0,-28);g.stroke()}
+  else{facet(g,0,-40,12,11,8,'#5a3b28',.2);facet(g,0,-47,13.5,7,8,s.hat,3.14,[0,.4]);fbox(g,-15,-46,30,3,s.hat)}}
+ else{if(s.hood){facet(g,0,-41,15.5,15,9,s.hood,.1);facet(g,0,-39.5,11,10,8,skin,.2,[0,-.2])}
+  else{facet(g,0,-39.5,12,11,8,skin,.2,[0,-.2]);facet(g,0,-47,13.5,7,8,s.hat,3.14,[0,.4]);fbox(g,-15,-46,30,3,s.hat)}
+  for(const ex of [-4.6,4.6]){g.fillStyle='#1b1b22';g.beginPath();g.ellipse(ex,-38,2.3,2.9,0,0,7);g.fill();g.fillStyle='#fff';g.beginPath();g.arc(ex+.8,-39.2,.9,0,7);g.fill();
+  g.fillStyle='rgba(255,120,140,.55)';g.beginPath();g.ellipse(ex*1.45,-33.8,2.2,1.4,0,0,7);g.fill()}
+  g.strokeStyle='#5a2a2a';g.lineWidth=.8;g.beginPath();g.arc(0,-34.5,1.8,.3,2.84);g.stroke()}
+}
 g.restore()}
-function sprite(key,fr){const k=key+fr;let c=sprCache[k];if(c)return c;c=document.createElement('canvas');c.width=SPW*SPS;c.height=SPH*SPS;const g=c.getContext('2d');g.scale(SPS,SPS);drawChibi(g,STY[key],fr);return sprCache[k]=c}
+function sprite(key,fr,dir='d'){const k=key+fr+dir;let c=sprCache[k];if(c)return c;c=document.createElement('canvas');c.width=SPW*SPS;c.height=SPH*SPS;const g=c.getContext('2d');g.scale(SPS,SPS);drawChibi(g,STY[key],fr,dir);return sprCache[k]=c}
 const bagCache={};function bagSprite(type){if(bagCache[type])return bagCache[type];const c=document.createElement('canvas');c.width=30*SPS;c.height=30*SPS;const g=c.getContext('2d');g.scale(SPS,SPS);
 if(type==='trash'){facet(g,15,19,9,9,8,'#2a2a2e');facet(g,15,8,3.5,3,5,'#2a2a2e');g.fillStyle='#f6cf26';g.beginPath();g.arc(15,19,4.3,0,7);g.fill();g.fillStyle='#2a2a2e';for(let i=0;i<3;i++){const a=i*2.094-1.57;g.beginPath();g.moveTo(15,19);g.arc(15,19,3.8,a-.5,a+.5);g.fill()}g.fillStyle='#f6cf26';g.beginPath();g.arc(15,19,.9,0,7);g.fill()}
 else{facet(g,15,18,11,10,9,'#efe6c6');facet(g,15,7,4,3,5,'#efe6c6');fbox(g,11.5,8.5,7,2.2,'#d33a3a')}
 return bagCache[type]=c}
 function person(x,y,key,t,moving,carry,ent){const[p,q]=iso(x,y);shadow(x,y,11);
-let face=1;if(ent){const vx=(ent.vx||0)-(ent.vy||0);if(Math.abs(vx)>5)ent.face=vx<0?-1:1;face=ent.face||1}
+let dir='d',face=1;if(ent){const vx=ent.vx||0,vy=ent.vy||0,sx=(vx-vy)*IX,sy=(vx+vy)*IY;if(Math.hypot(sx,sy)>6){if(Math.abs(sx)>Math.abs(sy)*1.1){ent.dir='s';ent.face=sx<0?-1:1}else{ent.dir=sy>0?'d':'u'}}dir=ent.dir||'d';face=dir==='s'?(ent.face||1):1}
 const fr=moving?((t*14)|0)%8:-1,ph=t*14/8*6.283,bob=moving?Math.abs(Math.sin(ph))*2.5:Math.sin(t*3)*.6,sq=moving?1+Math.cos(ph*2)*.04:1+Math.sin(t*3)*.015;
-const im=sprite(key,fr<0?0:fr);X.save();X.translate(p,q);X.scale(1.35*face/sq,1.35*sq);X.drawImage(im,-SPW/2,-SPH+3-bob,SPW,SPH);X.restore();
-if(carry){const b=bagSprite('trash');for(let i=0;i<Math.min(carry,6);i++)X.drawImage(b,p-13+(i%2)*10-face*2,q-104-bob-(i>>1)*11,24,24)}}
+const im=sprite(key,fr,dir);
+const drawBags=()=>{if(carry){const b=bagSprite('trash');for(let i=0;i<Math.min(carry,6);i++)X.drawImage(b,p-13+(i%2)*10,q-104-bob-(i>>1)*11,24,24)}};
+if(dir==='u')drawBags();X.save();X.translate(p,q);X.scale(1.35*face/sq,1.35*sq);X.drawImage(im,-SPW/2,-SPH+3-bob,SPW,SPH);X.restore();if(dir!=='u')drawBags()}
 let parts=[];function spark(x,y,c,n=6){for(let i=0;i<n;i++)parts.push({x,y,z:4,vx:(Math.random()-.5)*80,vy:(Math.random()-.5)*80,vz:60+Math.random()*60,c,t:.6})}
-function draw(){const t=S.t||performance.now()/1000;X.setTransform(1,0,0,1,0,0);X.fillStyle='#1a1e22';X.fillRect(0,0,C.width,C.height);if(!floorC)buildFloor();
+function draw(){{const cb=document.getElementById('cartBtn'),v=S.hasCart&&!S.paused?'block':'none';if(cb.style.display!==v)cb.style.display=v}const t=S.t||performance.now()/1000;X.setTransform(1,0,0,1,0,0);X.fillStyle='#1a1e22';X.fillRect(0,0,C.width,C.height);if(!floorC)buildFloor();
 const dt=1/60;for(const q of parts){q.x+=q.vx*dt;q.y+=q.vy*dt;q.vz-=300*dt;q.z=Math.max(0,q.z+q.vz*dt);q.t-=dt}parts=parts.filter(q=>q.t>0);
 const p=S.p,[px,py]=iso(p.x,p.y);camX+=(px-camX)*.12;camY+=(py-camY)*.12;
 X.setTransform(DPR*ZM,0,0,DPR*ZM,DPR*(VW/2-camX*ZM),DPR*(VH/2-camY*ZM));X.textAlign='center';
@@ -176,8 +214,8 @@ X.fillStyle='rgba(0,0,0,.65)';X.fillRect(SW/2-160,8,320,58);const left=Math.max(
 X.fillStyle=left<30?'#f44':'#fff';X.font='bold 22px monospace';X.fillText('SHIFT '+(left/60|0)+':'+String(left%60|0).padStart(2,'0'),SW/2,34);
 X.fillStyle='#333';X.fillRect(SW/2-150,44,300,14);X.fillStyle='#fc0';X.fillRect(SW/2-150,44,300*S.xp/S.next,14);X.fillStyle='#000';X.font='bold 11px sans-serif';X.fillText('LVL '+S.lvl+'  XP '+S.xp+'/'+S.next,SW/2,55);
 const ex=SW-196,ey=74;X.fillStyle=S.alarm?'#600':'rgba(10,10,10,.85)';X.fillRect(ex,ey,186,78);X.strokeStyle='#0f0';X.strokeRect(ex,ey,186,78);X.textAlign='left';
-X.fillStyle='#0f0';X.font='bold 12px monospace';X.fillText('ED  SP: 10mR / 100mR/hr',ex+6,ey+17);X.font='bold 17px monospace';
-X.fillStyle=S.dose>7?'#fa0':'#0f0';X.fillText('DOSE '+S.dose.toFixed(2)+' mR',ex+6,ey+42);X.fillStyle=S.rate>=60?'#f44':'#0f0';X.fillText('RATE '+S.rate.toFixed(0)+' mR/hr',ex+6,ey+66);
+X.fillStyle='#0f0';X.font='bold 12px monospace';X.fillText('ED  SP: '+S.sp1+'mR / '+S.sp2+'mR/hr',ex+6,ey+17);X.font='bold 17px monospace';
+X.fillStyle=S.dose>S.sp1*.7?'#fa0':'#0f0';X.fillText('DOSE '+S.dose.toFixed(2)+' mR',ex+6,ey+42);X.fillStyle=S.rate>=S.sp2*.6?'#f44':'#0f0';X.fillText('RATE '+S.rate.toFixed(0)+' mR/hr',ex+6,ey+66);
 if(S.alarm){X.fillStyle='#f44';X.font='bold 15px sans-serif';X.fillText('🚨 ED ALARM - go to RP!',ex,ey+96)}X.textAlign='center';
 X.setTransform(DPR,0,0,DPR,0,0);
 if(joy){X.globalAlpha=.35;X.fillStyle='#fff';X.beginPath();X.arc(joy.ox,joy.oy,60,0,7);X.fill();X.globalAlpha=.85;const jx=joy.x-joy.ox,jy=joy.y-joy.oy,jl=Math.max(1,Math.hypot(jx,jy)),k=Math.min(60,jl)/jl;X.fillStyle='#fc0';X.beginPath();X.arc(joy.ox+jx*k,joy.oy+jy*k,28,0,7);X.fill();X.globalAlpha=1}}
@@ -188,6 +226,6 @@ function title(){reset();OV.innerHTML=`<div class="box"><h1>☢️ DECON TECH: O
 <li><b>WASD / Arrows</b> to move. On a phone, touch anywhere and drag to use the joystick.</li><li>Grab 🗑️ trash and 🧺 laundry bags and haul them to the <b>DAW area</b> for XP. Carrying slows you down; bigger loads earn a bonus.</li>
 <li>Stand on 💧 spills to mop them. Old spills spread!</li><li>Stand by a ⚙️ motor to decon it for big XP.</li><li>👷 Workers wander around and get in your way.</li>
 <li>☢️ Watch your <b>ED</b>: 10 mR total or 100 mR/hr trips the alarm. Then you have to go to the <b>RP station</b> to get it reset, and you lose XP.</li>
-<li>Level up and pick upgrades, including the 🛒 cart. A low dose at shift end earns an <b>ALARA bonus</b>.</li></ul><button onclick="start()">CLOCK IN</button></div>`;OV.style.display='flex'}
+<li>Level up and pick upgrades, including the 🛒 cart. Earn 💵 Outage Pay every shift and spend it in the Shop on permanent gear. A low dose at shift end earns an <b>ALARA bonus</b>.</li></ul><button onclick="start()" style="font-size:20px">CLOCK IN</button><button onclick="shop('title')" style="font-size:20px">🏪 Shop (💵 ${META.pay})</button></div>`;OV.style.display='flex'}
 fit();title();requestAnimationFrame(loop);
 </script></body></html>
