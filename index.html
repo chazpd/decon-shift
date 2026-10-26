@@ -8,7 +8,7 @@ button{min-height:48px;min-width:140px;background:#fc0;border:0;padding:10px 18p
 <canvas id="c"></canvas><div id="ov"></div><button id="cartBtn" onclick="toggleCart()" style="position:fixed;right:18px;bottom:18px;display:none;z-index:5;font-size:28px;min-width:64px;min-height:64px;border-radius:50%">🛒</button>
 <script>
 const SHOP=[
-{id:'gloves',n:'🧤 Better Gloves',d:l=>'+'+l+' hand carry (max 4 without cart)',max:1,c:40,g:1.6},
+{id:'gloves',n:'🧤 Better Gloves',d:l=>'+'+l+' hand carry (hard max 4 without cart)',max:1,c:40,g:1.6},
 {id:'shoes',n:'👟 Better Shoes',d:l=>'+'+(l*6)+'% move speed',max:5,c:40,g:1.6},
 {id:'mop',n:'🧽 Better Mop',d:l=>'+'+(l*20)+'% mop speed',max:5,c:35,g:1.6},
 {id:'squeegee',n:'🧹 Squeegee / Wet Vac',d:l=>'+'+(l*8)+' mop reach',max:3,c:80,g:1.8},
@@ -27,8 +27,8 @@ const saveMeta=()=>{try{localStorage.setItem('deconMeta',JSON.stringify(META))}c
 const ML=id=>META.lv[id]||0,cost=it=>Math.round(it.c*Math.pow(it.g,ML(it.id)));
 function applyMeta(){const u=S.up;u.cap=Math.min(4,u.cap+ML('gloves'));u.spd*=1+.06*ML('shoes');u.mop*=1+.2*ML('mop');u.decon*=1+.25*ML('kneepads');
 S.reach=4+8*ML('squeegee');S.doseMul=1-.12*ML('tyvek');S.sp1=10+5*ML('training');S.sp2=100+50*ML('training');S.xpMul=1+.08*ML('seniority');S.bagMul=1+.15*ML('bigbags');S.coffee=.12*ML('coffee');S.rpMul=1-.25*ML('rpbuddy');S.hasCart=ML('cart')>0;S.buddy=ML('buddy')?{x:S.p.x-30,y:S.p.y-30,vx:0,vy:0,carry:null}:null;S.buddyCD=0;applyCos();S.magnet+=12*ML('magnet')}
-function toggleCart(){if(!S.hasCart||S.paused)return;const u=S.up;if(u.cart&&S.p.carry.length>u.cap){float(S.p.x,S.p.y-30,'Unload first!','#f88');return}u.cart=!u.cart;float(S.p.x,S.p.y-30,u.cart?'🛒 Cart!':'Cart parked',u.cart?'#fc0':'#ccc')}
-const capOf=()=>S.up.cart?S.up.cartCap:S.up.cap;
+function toggleCart(){if(!S.hasCart||S.paused)return;const u=S.up;if(u.cart&&S.p.carry.length>Math.min(4,u.cap)){float(S.p.x,S.p.y-30,'Unload first!','#f88');return}u.cart=!u.cart;float(S.p.x,S.p.y-30,u.cart?'🛒 Cart!':'Cart parked',u.cart?'#fc0':'#ccc')}
+const capOf=()=>S.up.cart?S.up.cartCap:Math.min(4,S.up.cap);
 addEventListener('keydown',e=>{if(e.key.toLowerCase()==='c')toggleCart()});
 function shop(from,tab){S.paused=true;if(tab==='cos'){OV.innerHTML=`<div class="box wide"><h1>🎨 Cosmetics</h1><h2>💵 Outage Pay: ${META.pay}</h2><button onclick="shop('${from}')">🏪 Gear</button><button disabled>🎨 Cosmetics</button><div>${cosHTML(from)}</div><button style="font-size:20px" onclick="${from==='end'?'shiftSelect()':'title()'}">${from==='end'?'▶ Next Shift':'◀ Back'}</button></div>`;OV.style.display='flex';return}const it=SHOP.map(i=>{const l=ML(i.id),mx=l>=i.max,c=cost(i),ok=!mx&&META.pay>=c;
 return`<div class="card shop"><h3>${i.n}</h3><div>Lv ${l}/${i.max}</div><p>${i.d(Math.max(l,mx?l:l+1))}${mx?'':l?' (next)':''}</p><button ${ok?'':'disabled'} onclick="buy('${i.id}','${from}')">${mx?'MAXED':'💵 '+c}</button></div>`}).join('');
@@ -134,10 +134,27 @@ function drawBubbles(t){for(const b of S.bub){const[a,c]=iso(b.x,b.y,b.z+6);cons
 function updStack(dt){const p=S.p,sx=((p.vx||0)-(p.vy||0))*IX;S.lean+=((-sx)*.05-S.lean)*Math.min(1,dt*5);for(const c of p.carry)if(c.a<1.35)c.a=Math.min(1.35,c.a+dt*3.2);
 for(const f of S.flyOut){f.t+=dt;if(f.t>=.32&&!f.done){f.done=1;S.stats.bags++;const bx=DAW.x+36,by=DAW.y+28;dropXP(f.val,bx+20,by+30,110);spark(bx,by,'#ffd400',8)}}S.flyOut=S.flyOut.filter(f=>f.t<.5)}
 const BS=40;
-function stackPos(i,p,q,bob,face,dir,t){const sw=(S.lean+Math.sin(t*6)*(.6+Math.hypot(S.p.vx||0,S.p.vy||0)/120))*Math.pow(i,1.4)*1.1;return[p-(dir==='s'?face*14:0)+sw,q-92-bob-i*24]}
-function drawStack(p,q,bob,face,dir,t){const car=S.p.carry;for(let i=0;i<car.length;i++){const c=car[i];let[x,y]=stackPos(i,p,q,bob,face,dir,t);
+function stackPos(i,p,q,bob,face,dir,t){const sw=(S.lean+Math.sin(t*6)*(.6+Math.hypot(S.p.vx||0,S.p.vy||0)/120))*Math.pow(i,1.4)*1.1;return[p-(dir==='s'?face*13:0)+sw*.6,q-40-bob-i*15]}
+function drawStack(p,q,bob,face,dir,t,pf){const car=S.p.carry;for(let i=0;i<car.length;i++){const c=car[i];let[x,y]=pf?pf(i):stackPos(i,p,q,bob,face,dir,t);
 if(c.a<1){const[sx,sy]=iso(c.fx,c.fy);const e=c.a;x=sx+(x-sx)*e;y=sy-10+(y-sy+10)*e-70*Math.sin(Math.PI*e)}const sq=c.a>=1&&c.a<1.35?1+Math.sin((c.a-1)/.35*Math.PI)*.18:1;
-const s=c.type==='laundry'?BS*1.1:BS;X.drawImage(bagSprite(c.type),x-s/2*sq,y-s/2/sq,s*sq,s/sq)}}
+const s=(c.type==='laundry'?BS*1.1:BS)*(pf?.72:1);X.drawImage(bagSprite(c.type),x-s/2*sq,y-s/2/sq,s*sq,s/sq)}}
+function cartDir(a){const sx=(Math.cos(a)-Math.sin(a))*IX,sy=(Math.cos(a)+Math.sin(a))*IY;return Math.abs(sx)>Math.abs(sy)*1.6?(sx<0?'l':'r'):(sy>0?'d':'u')}
+function cpoly(pts,c){X.fillStyle=c;X.beginPath();X.moveTo(pts[0][0],pts[0][1]);for(const q of pts)X.lineTo(q[0],q[1]);X.closePath();X.fill();X.strokeStyle='rgba(0,0,0,.35)';X.lineWidth=1;X.stroke()}
+function drawCart(cx,cy,a,t){const d=cartDir(a),[p,q]=iso(cx,cy),side=d==='l'||d==='r',w=side?26:18,dp=side?9:14,h=18,lift=9,f=d==='l'?-1:1;shadow(cx,cy,20);
+const wheel=(x,y)=>{X.fillStyle='#222';X.beginPath();X.ellipse(x,y,side?4:3.5,4,0,0,7);X.fill();X.fillStyle='#888';X.beginPath();X.arc(x,y,1.5,0,7);X.fill()};
+const bt=q-lift,tp=bt-h;// basket bottom/top screen y at front
+// back wheels
+wheel(p-w+4,q-dp*.6);wheel(p+w-4,q-dp*.6);
+// handle on player side
+const hx=side?p-f*(w+2):p,hy=d==='u'?q+4:tp-dp-2;X.strokeStyle='#555';X.lineWidth=3;X.beginPath();if(side){X.moveTo(p-f*w,tp+4);X.lineTo(hx-f*6,tp-10)}else{X.moveTo(p-w+3,d==='u'?tp+dp:tp-dp);X.lineTo(p-w+1,(d==='u'?tp+dp:tp-dp)-14);X.lineTo(p+w-1,(d==='u'?tp+dp:tp-dp)-14);X.lineTo(p+w-3,d==='u'?tp+dp:tp-dp)}X.stroke();if(side){X.strokeStyle='#e33';X.lineWidth=4;X.beginPath();X.moveTo(hx-f*6,tp-14);X.lineTo(hx-f*6,tp-6);X.stroke()}
+// basket: inside back, top rim, front face (faceted)
+cpoly([[p-w,tp-dp],[p+w,tp-dp],[p+w-3,bt-dp],[p-w+3,bt-dp]],'#6f767c');
+cpoly([[p-w,tp],[p+w,tp],[p+w-3,bt],[p-w+3,bt]],'#a3aab0');cpoly([[p-w,tp],[p-w+3,bt],[p-w+3,bt-dp],[p-w,tp-dp]],'#8a9298');cpoly([[p+w,tp],[p+w-3,bt],[p+w-3,bt-dp],[p+w,tp-dp]],'#7d858b');
+X.strokeStyle='rgba(255,255,255,.35)';for(let i=1;i<4;i++){X.beginPath();X.moveTo(p-w+i*w/2,tp+2);X.lineTo(p-w+i*w/2,bt-2);X.stroke()}
+// bags in basket (bounce in)
+drawStack(p,q,0,1,'d',t,i=>{const col=i%3,row=i/3|0;return[p+(col-1)*(w*.55),tp-dp*.4-row*10-(col===1?3:0)]});
+// front rim + front wheels
+X.fillStyle='#c9ced2';X.fillRect(p-w,tp-1,w*2,3);wheel(p-w+4,q);wheel(p+w-4,q)}
 function drawFlyOut(){for(const f of S.flyOut){if(f.t<0||f.done)continue;const e=Math.min(1,f.t/.32),[tx,ty]=iso(DAW.x+36,DAW.y+28,34);const x=f.sx+(tx-f.sx)*e,y=f.sy+(ty-f.sy)*e-90*Math.sin(Math.PI*e);X.drawImage(bagSprite(f.type),x-BS/2,y-BS/2,BS*(1-e*.3),BS*(1-e*.3))}}
 function gainXP(n,x,y,quiet){n=Math.round(n*(S.xpMul||1));S.xp+=n;if(!quiet)float(x,y,'+'+n+' XP');while(S.xp>=S.next){S.xp-=S.next;S.lvl++;S.next=Math.round(S.next*1.35+3);levelUp()}}
 const UPS=[
@@ -150,7 +167,7 @@ const UPS=[
 {id:'cart',n:'🛒 Laundry Cart',d:'Carry 8 bags! But you turn slow & workers block more',ok:()=>!S.hasCart&&S.lvl>=3,f:()=>{S.hasCart=true;S.up.cart=true}},
 {id:'cartp',n:'🛒 Cart Wheels',d:'+3 cart capacity',ok:()=>S.hasCart,f:()=>S.up.cartCap+=3},
 {id:'magnet',n:'🧲 XP Magnet',d:'+25 bubble pickup radius',ok:()=>S.magnet<140,f:()=>S.magnet+=25},
-{id:'harness',n:'🎽 Backpack Harness',d:'Mop & decon with bags on your back',ok:()=>!S.harness,f:()=>S.harness=true},
+{id:'harness',n:'🎽 Backpack Harness',d:'Mop & decon while carrying bags (no extra capacity)',ok:()=>!S.harness,f:()=>S.harness=true},
 {id:'alara',n:'🧱 Lead Blanket',d:'Shrink a random hot zone by 40%',ok:()=>1,f:()=>{const h=hot[Math.random()*hot.length|0];h.r*=.6;h.rate*=.6}}];
 function levelUp(){S.paused=true;const pool=UPS.filter(u=>u.ok()).sort(()=>Math.random()-.5).slice(0,3);
 OV.innerHTML=`<div class="box"><h2>⬆ LEVEL ${S.lvl}!</h2><p>Pick an upgrade:</p>${pool.map((u,i)=>`<div class="card" id="u${i}"><h3>${u.n}</h3><p>${u.d}</p></div>`).join('')}</div>`;OV.style.display='flex';
@@ -167,7 +184,7 @@ if(joy){const jx=joy.x-joy.ox,jy=joy.y-joy.oy,jl=Math.hypot(jx,jy);if(jl>8){cons
 {const m=Math.min(1,Math.hypot(dx,dy));const r=screenToWorld(dx,dy);dx=r[0]*m;dy=r[1]*m}
 let sp=170*u.spd*(S.t<60?1+S.coffee:1)*(p.carry.length?u.carrySpd:1)*(u.cart?0.85:1);
 p.vx=p.vx||0;p.vy=p.vy||0;const acc=u.cart?3:14;p.vx+=(dx*sp-p.vx)*Math.min(1,acc*dt);p.vy+=(dy*sp-p.vy)*Math.min(1,acc*dt);
-const pr=u.cart?18:p.r;
+const pr=u.cart?18:p.r;if(u.cart){const v=Math.hypot(p.vx,p.vy);if(S.cartA==null)S.cartA=Math.atan2(p.vy,p.vx)||0;if(v>20){let da=Math.atan2(p.vy,p.vx)-S.cartA;da=Math.atan2(Math.sin(da),Math.cos(da));S.cartA+=da*Math.min(1,dt*2.6)}}
 if(!solid(p.x+p.vx*dt,p.y,pr))p.x+=p.vx*dt;if(!solid(p.x,p.y+p.vy*dt,pr))p.y+=p.vy*dt;
 // workers
 for(const w of S.workers){w.t-=dt;if(w.t<=0){const a=Math.random()*6.28;w.vx=Math.cos(a)*60;w.vy=Math.sin(a)*60;w.t=1+Math.random()*3}
@@ -182,14 +199,14 @@ for(let i=S.items.length-1;i>=0;i--){const it=S.items[i];if(Math.hypot(it.x-p.x,
 if(inR(p,DAW)&&p.carry.length&&p.carry.every(c=>c.a>=1)){const n=p.carry.length,bonus=n>=4?Math.floor(n/2):0;const[px0,py0]=iso(p.x,p.y);for(let i=n-1,k=0;i>=0;i--,k++){const c=p.carry[i];const[x,y]=stackPos(i,px0,py0,0,1,'d',S.t);S.flyOut.push({type:c.type,sx:x,sy:y,t:-k*.13,val:Math.round(((c.type==='laundry'?2:1)+(k===n-1?bonus:0))*S.bagMul)})}p.carry=[];job()}
 // spills: mop
 for(let i=S.spills.length-1;i>=0;i--){const s=S.spills[i];s.age+=dt;if(s.age>60&&s.r<36){s.r+=dt*0.3}
-if(Math.hypot(s.x-p.x,s.y-p.y)<s.r+S.reach&&!u.cart&&(S.harness||!p.carry.length)){S.mopping=.15;if(Math.random()<dt*12)spark(s.x,s.y,'#bfe8ff',3);s.prog+=dt*u.mop*(30/s.r)*0.8;if(s.prog>=1){S.spills.splice(i,1);S.stats.spills++;job();let hz=0;for(const h of hot)if(Math.hypot(h.x-s.x,h.y-s.y)<h.r)hz=1;dropXP(3+hz*4,s.x,s.y);if(hz)float(s.x,s.y-30,'☢ Hot spill +4','#f6f')}}}
-if(S.motor){const m=S.motor;if(Math.hypot(m.x-p.x,m.y-p.y)<pr+28&&(S.harness||!p.carry.length)){m.prog+=dt*u.decon;if(m.prog>=m.need){S.motor=null;S.stats.motors++;job();dropXP(15,m.x,m.y,140);spark(m.x,m.y,'#f80',20)}}}
+if(Math.hypot(s.x-p.x,s.y-p.y)<s.r+S.reach&&(u.cart||S.harness||!p.carry.length)){S.mopping=.15;if(Math.random()<dt*12)spark(s.x,s.y,'#bfe8ff',3);s.prog+=dt*u.mop*(30/s.r)*0.8;if(s.prog>=1){S.spills.splice(i,1);S.stats.spills++;job();let hz=0;for(const h of hot)if(Math.hypot(h.x-s.x,h.y-s.y)<h.r)hz=1;dropXP(3+hz*4,s.x,s.y);if(hz)float(s.x,s.y-30,'☢ Hot spill +4','#f6f')}}}
+if(S.motor){const m=S.motor;if(Math.hypot(m.x-p.x,m.y-p.y)<pr+28&&(u.cart||S.harness||!p.carry.length)){m.prog+=dt*u.decon;if(m.prog>=m.need){S.motor=null;S.stats.motors++;job();dropXP(15,m.x,m.y,140);spark(m.x,m.y,'#f80',20)}}}
 // dose
 let rate=0.5;for(const h of hot){const d=Math.hypot(h.x-p.x,h.y-p.y);if(d<h.r)rate+=h.rate*(1-d/h.r*.6);else if(d<h.r*1.6)rate+=h.rate*.08}
 S.rate=rate;S.dose+=rate*S.doseMul*dt/3600*12; // 12x time compression
 if(!S.alarm&&(S.dose-(S.doseBase||0)>=S.sp1||rate>=S.sp2)){S.alarm=true;S.stats.alarms++;if(S.combo>=3)float(p.x,p.y-50,'Combo lost!','#f88');S.combo=0;float(p.x,p.y-30,'ED ALARM! 🚨 Go see RP','#f44');S.alarmDoseBase=S.dose}
 if(S.alarm&&inR(p,RP)){S.alarm=false;if(S.dose-(S.doseBase||0)>=S.sp1)S.doseBase=S.dose;const lost=Math.min(S.xp,Math.ceil(S.next*.4*S.rpMul));S.xp-=lost;float(p.x,p.y-30,'ED reset. -'+lost+' XP. Stay ALARA!','#f88');if(S.dose>=S.sp1)S.dose10=(S.dose10||0)+1}
-updBubbles(dt);updStack(dt);updEvents(dt);updBuddy(dt);if(S.mopping>0)S.mopping-=dt;if(S.banner2>0)S.banner2-=dt;if(S.comboT>0){S.comboT-=dt;if(S.comboT<=0)S.combo=0}if(S.knockCD>0)S.knockCD-=dt;for(const f of S.floats){f.t-=dt;f.y-=30*dt}S.floats=S.floats.filter(f=>f.t>0)}
+updBubbles(dt);updStack(dt);updEvents(dt);updBuddy(dt);if(S.mopping>0)S.mopping=Math.max(0,S.mopping-dt);if(S.banner2>0)S.banner2-=dt;if(S.comboT>0){S.comboT-=dt;if(S.comboT<=0)S.combo=0}if(S.knockCD>0)S.knockCD-=dt;for(const f of S.floats){f.t-=dt;f.y-=30*dt}S.floats=S.floats.filter(f=>f.t>0)}
 function endShift(){S.paused=true;S.over=true;const dose=S.dose,alara=dose<3?500:dose<6?250:dose<10?100:0,M=MODES[MODE];
 S.pcmAlarm=Math.random()<pcmRisk();
 let base=S.cleans*40+S.stats.bags*2+S.stats.spills*4+S.stats.motors*15+S.tentsOk*20+alara/25+S.lvl*2;let pay=Math.round(base*M.pay*(S.pcmAlarm?.85:1));
@@ -269,7 +286,7 @@ let dir='d',face=1;if(ent){const vx=ent.vx||0,vy=ent.vy||0,sx=(vx-vy)*IX,sy=(vx+
 const fr=moving?((t*14)|0)%8:-1,ph=t*14/8*6.283,bob=moving?Math.abs(Math.sin(ph))*2.5:Math.sin(t*3)*.6,sq=moving?1+Math.cos(ph*2)*.04:1+Math.sin(t*3)*.015;
 const im=sprite(key,fr,dir);
 const drawBags=()=>{if(carry&&key==='player'&&!S.up.cart)drawStack(p,q,bob,face,dir,t)};
-if(dir!=='u')drawBags();X.save();X.translate(p,q);X.scale(1.35*face/sq,1.35*sq);X.drawImage(im,-SPW/2,-SPH+3-bob,SPW,SPH);X.restore();if(key==='player'){drawHat(p,q,bob,dir,face);if(S.mopping)drawMop(p,q,t)}if(dir==='u')drawBags()}
+if(dir!=='u')drawBags();X.save();X.translate(p,q);X.scale(1.35*face/sq,1.35*sq);X.drawImage(im,-SPW/2,-SPH+3-bob,SPW,SPH);X.restore();if(key==='player'){drawHat(p,q,bob,dir,face);if(S.mopping>0)drawMop(p,q,t)}if(dir==='u')drawBags()}
 let parts=[];function spark(x,y,c,n=6){for(let i=0;i<n;i++)parts.push({x,y,z:4,vx:(Math.random()-.5)*80,vy:(Math.random()-.5)*80,vz:60+Math.random()*60,c,t:.6})}
 function draw(){{const cb=document.getElementById('cartBtn'),v=S.hasCart&&!S.paused?'block':'none';if(cb.style.display!==v)cb.style.display=v}const t=S.t||performance.now()/1000;X.setTransform(1,0,0,1,0,0);X.fillStyle='#1a1e22';X.fillRect(0,0,C.width,C.height);if(!floorC)buildFloor();
 const dt=1/60;for(const q of parts){q.x+=q.vx*dt;q.y+=q.vy*dt;q.vz-=300*dt;q.z=Math.max(0,q.z+q.vz*dt);q.t-=dt}parts=parts.filter(q=>q.t>0);
@@ -293,8 +310,8 @@ for(const c of CANS)L.push({d:c.x+c.y-1,f:()=>{shadow(c.x,c.y,15);const[a,b]=iso
 const cols=['#e67e22','#27ae60','#8e44ad','#2980b9','#c0392b','#16a085'];
 S.workers.forEach((w,i)=>L.push({d:w.x+w.y,f:()=>person(w.x,w.y,'w'+(i%6),t+i*.37,true,0,w)}));
 const mv=Math.hypot(p.vx||0,p.vy||0)>15;
-L.push({d:p.x+p.y,f:()=>{if(S.up.cart){shadow(p.x,p.y,18);box(p.x-24,p.y-16,30,30,16,'#9aa0a6');box(p.x-24,p.y-16,30,4,26,'#c0c4c8');box(p.x-24,p.y+10,30,4,26,'#c0c4c8');p.carry.forEach((c,i)=>{const[a,b]=iso(p.x-20+(i%3)*10,p.y-8+((i/3|0)%3)*10,18+(i/9|0)*10);X.drawImage(bagSprite(c.type),a-11,b-18,22,22)})}const al=S.alarm&&(t*6|0)%2;if(al){const[a,b]=iso(p.x,p.y);X.fillStyle='rgba(255,40,40,.55)';X.beginPath();X.ellipse(a,b,26,13,0,0,7);X.fill()}person(p.x,p.y,'player',t,mv,p.carry.length,p);
-if(p.carry.length){const[a,b]=iso(p.x,p.y);X.fillStyle='#ffd400';X.font='bold 11px sans-serif';X.fillText(p.carry.length+"/"+S.up.cap,a,b-112)}}});
+if(S.up.cart){const a=S.cartA||0,cr=cartDir(a)==="u"?62:40,cx=p.x+Math.cos(a)*cr,cy=p.y+Math.sin(a)*cr;L.push({d:cx+cy,f:()=>drawCart(cx,cy,a,t)})}L.push({d:p.x+p.y,f:()=>{const al=S.alarm&&(t*6|0)%2;if(al){const[a,b]=iso(p.x,p.y);X.fillStyle='rgba(255,40,40,.55)';X.beginPath();X.ellipse(a,b,26,13,0,0,7);X.fill()}person(p.x,p.y,'player',t,mv,p.carry.length,p);
+if(p.carry.length){const[a,b]=iso(p.x,p.y);X.fillStyle='#ffd400';X.font='bold 11px sans-serif';X.fillText(p.carry.length+"/"+capOf(),a,b-112)}}});
 L.sort((a,b)=>a.d-b.d);for(const o of L)o.f();drawFlyOut();
 for(const q of parts){const[a,b]=iso(q.x,q.y,q.z);X.globalAlpha=Math.min(1,q.t*2);X.fillStyle=q.c;X.fillRect(a-2,b-2,4,4)}X.globalAlpha=1;
 {const[a,b]=iso(DAW.x+DAW.w/2,DAW.y+DAW.h);X.fillStyle='#ffd400';X.font='bold 14px sans-serif';X.fillText('▼ DAW DROP-OFF',a,b+18);const[c,d]=iso(RP.x+RP.w/2,RP.y+RP.h);X.fillStyle='#6cf';X.fillText('▼ RP STATION',c,d+18)}
