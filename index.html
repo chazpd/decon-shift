@@ -56,6 +56,12 @@ up:{spd:1,cap:3,cartCap:8,carrySpd:0.7,mop:1,decon:1,push:0,cart:false},
 spawnT:0,spillT:3,motorT:40,paused:true,floats:[],over:false};
 for(let i=0;i<5;i++)S.workers.push({x:400+Math.random()*300,y:300+Math.random()*200,vx:0,vy:0,t:0});
 for(let i=0;i<4;i++)spawnItem();applyMeta()}
+function freeNear(x,y,r){for(let d=2;d<160;d+=3)for(let a=0;a<6.283;a+=.393){const nx=x+Math.cos(a)*d,ny=y+Math.sin(a)*d;if(!solid(nx,ny,r))return[nx,ny]}return null}
+function unstick(p,pr,dx,dy,dt){if(solid(p.x,p.y,pr)){const f=freeNear(p.x,p.y,pr);if(f){p.x=f[0];p.y=f[1]}}
+const inp=Math.hypot(dx,dy)>.3,moved=Math.hypot(p.x-(p.lx??p.x),p.y-(p.ly??p.y));p.lx=p.x;p.ly=p.y;
+if(inp&&moved<dt*15)p.stuckT=(p.stuckT||0)+dt;else p.stuckT=0;
+if(p.stuckT>.5){p.stuckT=0;let near=false;for(const w of S.workers)if(Math.hypot(w.x-p.x,w.y-p.y)<pr+16){near=true;const a=Math.atan2(w.y-p.y,w.x-p.x),f=freeNear(w.x+Math.cos(a)*30,w.y+Math.sin(a)*30,12);if(f){w.x=f[0];w.y=f[1]}}
+const sd=solid(p.x+dx*4,p.y+dy*4,pr);if(near||sd){const f=freeNear(p.x+dx*6,p.y+dy*6,pr);if(f&&Math.hypot(f[0]-p.x,f[1]-p.y)<40){p.x=f[0];p.y=f[1]}}}}
 function solid(x,y,r){if(x<r||y<r||x>W-r||y>H-r)return true;for(const w of walls)if(x+r>w[0]&&x-r<w[0]+w[2]&&y+r>w[1]&&y-r<w[1]+w[3])return true;return false}
 const CANS=[{x:250,y:210,n:'Aux Bldg'},{x:95,y:440,n:'Pipe Chase'},{x:650,y:320,n:'Containment'},{x:830,y:90,n:'Turbine'},{x:810,y:470,n:'RCA Hall'}],CAN_CAP=8;
 function nearCan(x,y,d=55){return CANS.some(c=>Math.hypot(c.x-x,c.y-y)<d)}
@@ -137,7 +143,7 @@ const BS=40;
 function stackPos(i,p,q,bob,face,dir,t){const sw=(S.lean+Math.sin(t*6)*(.6+Math.hypot(S.p.vx||0,S.p.vy||0)/120))*Math.pow(i,1.4)*1.1;return[p-(dir==='s'?face*13:0)+sw*.6,q-40-bob-i*15]}
 function drawStack(p,q,bob,face,dir,t,pf){const car=S.p.carry;for(let i=0;i<car.length;i++){const c=car[i];let[x,y]=pf?pf(i):stackPos(i,p,q,bob,face,dir,t);
 if(c.a<1){const[sx,sy]=iso(c.fx,c.fy);const e=c.a;x=sx+(x-sx)*e;y=sy-10+(y-sy+10)*e-70*Math.sin(Math.PI*e)}const sq=c.a>=1&&c.a<1.35?1+Math.sin((c.a-1)/.35*Math.PI)*.18:1;
-const s=(c.type==='laundry'?BS*1.1:BS)*(pf?.72:1);X.drawImage(bagSprite(c.type),x-s/2*sq,y-s/2/sq,s*sq,s/sq)}}
+const s=BS*1.1*(pf?.72:1);X.drawImage(bagSprite(c.type),x-s/2*sq,y-s/2/sq,s*sq,s/sq)}}
 function cartDir(a){const sx=(Math.cos(a)-Math.sin(a))*IX,sy=(Math.cos(a)+Math.sin(a))*IY;return Math.abs(sx)>Math.abs(sy)*1.6?(sx<0?'l':'r'):(sy>0?'d':'u')}
 function cpoly(pts,c){X.fillStyle=c;X.beginPath();X.moveTo(pts[0][0],pts[0][1]);for(const q of pts)X.lineTo(q[0],q[1]);X.closePath();X.fill();X.strokeStyle='rgba(0,0,0,.35)';X.lineWidth=1;X.stroke()}
 function drawCart(cx,cy,a,t){const d=cartDir(a),[p,q]=iso(cx,cy),side=d==='l'||d==='r',w=side?26:18,dp=side?9:14,h=18,lift=9,f=d==='l'?-1:1;shadow(cx,cy,20);
@@ -155,7 +161,7 @@ X.strokeStyle='rgba(255,255,255,.35)';for(let i=1;i<4;i++){X.beginPath();X.moveT
 drawStack(p,q,0,1,'d',t,i=>{const col=i%3,row=i/3|0;return[p+(col-1)*(w*.55),tp-dp*.4-row*10-(col===1?3:0)]});
 // front rim + front wheels
 X.fillStyle='#c9ced2';X.fillRect(p-w,tp-1,w*2,3);wheel(p-w+4,q);wheel(p+w-4,q)}
-function drawFlyOut(){for(const f of S.flyOut){if(f.t<0||f.done)continue;const e=Math.min(1,f.t/.32),[tx,ty]=iso(DAW.x+36,DAW.y+28,34);const x=f.sx+(tx-f.sx)*e,y=f.sy+(ty-f.sy)*e-90*Math.sin(Math.PI*e);X.drawImage(bagSprite(f.type),x-BS/2,y-BS/2,BS*(1-e*.3),BS*(1-e*.3))}}
+function drawFlyOut(){for(const f of S.flyOut){if(f.t<0||f.done)continue;const e=Math.min(1,f.t/.32),[tx,ty]=iso(DAW.x+36,DAW.y+28,34);const x=f.sx+(tx-f.sx)*e,y=f.sy+(ty-f.sy)*e-90*Math.sin(Math.PI*e);X.drawImage(bagSprite(f.type),x-BS*.55,y-BS*.55,BS*1.1*(1-e*.3),BS*1.1*(1-e*.3))}}
 function gainXP(n,x,y,quiet){n=Math.round(n*(S.xpMul||1));S.xp+=n;if(!quiet)float(x,y,'+'+n+' XP');while(S.xp>=S.next){S.xp-=S.next;S.lvl++;S.next=Math.round(S.next*1.35+3);levelUp()}}
 const UPS=[
 {id:'spd',n:'👟 Fast Feet',d:'+15% move speed',ok:()=>1,f:()=>S.up.spd*=1.15},
@@ -191,8 +197,9 @@ for(const w of S.workers){w.t-=dt;if(w.t<=0){const a=Math.random()*6.28;w.vx=Mat
 if(!solid(w.x+w.vx*dt,w.y,12))w.x+=w.vx*dt;else w.vx*=-1;if(!solid(w.x,w.y+w.vy*dt,12))w.y+=w.vy*dt;else w.vy*=-1;
 const ddx=p.x-w.x,ddy=p.y-w.y,d=Math.hypot(ddx,ddy),md=pr+12;
 if(d<md&&d>0){const nx=ddx/d,ny=ddy/d,o=md-d;if(!u.cart&&p.carry.length>=2&&S.knockCD<=0&&Math.hypot(p.vx||0,p.vy||0)>110){S.knockCD=1.2;const c=p.carry.pop();const a=Math.random()*6.283;S.items.push({x:p.x+Math.cos(a)*40,y:p.y+Math.sin(a)*40,type:c.type,can:null});S.dirty=true;float(p.x,p.y-60,'Whoops! Bag fell','#fa0')}
-if(u.push){const k=u.push*.35;const wx=w.x-nx*o*(1+k),wy=w.y-ny*o*(1+k);if(!solid(wx,wy,12)){w.x=wx;w.y=wy;if(Math.random()<.02)float(w.x,w.y-20,'Hey!','#aaf')}else{p.x+=nx*o;p.y+=ny*o}}
-else{p.x+=nx*o;p.y+=ny*o;p.vx*=u.cart?.2:.5;p.vy*=u.cart?.2:.5}}}
+if(u.push){const k=u.push*.35;const wx=w.x-nx*o*(1+k),wy=w.y-ny*o*(1+k);if(!solid(wx,wy,12)){w.x=wx;w.y=wy;if(Math.random()<.02)float(w.x,w.y-20,'Hey!','#aaf')}else{if(!solid(p.x+nx*o,p.y,pr))p.x+=nx*o;if(!solid(p.x,p.y+ny*o,pr))p.y+=ny*o}}
+else{const wx=w.x-nx*o*.6,wy=w.y-ny*o*.6;if(!solid(wx,wy,12)){w.x=wx;w.y=wy}const k=solid(w.x,w.y,12)?1:.4;if(!solid(p.x+nx*o*k,p.y,pr))p.x+=nx*o*k;if(!solid(p.x,p.y+ny*o*k,pr))p.y+=ny*o*k;p.vx*=u.cart?.2:.5;p.vy*=u.cart?.2:.5;const pa=Math.atan2(-ny,-nx)+(Math.random()<.5?1.6:-1.6);w.vx=Math.cos(pa)*60;w.vy=Math.sin(pa)*60;w.t=.6+Math.random()*.6}}}
+unstick(p,pr,dx,dy,dt);
 if(S.workers.length<(5+S.t/50)*MODES[MODE].workers)S.workers.push({...freeSpot(),vx:0,vy:0,t:0});
 // pickup
 for(let i=S.items.length-1;i>=0;i--){const it=S.items[i];if(Math.hypot(it.x-p.x,it.y-p.y)<pr+12&&p.carry.length<capOf()){p.carry.push({type:it.type,a:0,fx:it.x,fy:it.y});S.items.splice(i,1)}}
@@ -278,7 +285,7 @@ if(side){ // profile facing right
 g.restore()}
 function sprite(key,fr,dir='d'){const k=key+fr+dir;let c=sprCache[k];if(c)return c;c=document.createElement('canvas');c.width=SPW*SPS;c.height=SPH*SPS;const g=c.getContext('2d');g.scale(SPS,SPS);drawChibi(g,STY[key],fr,dir);return sprCache[k]=c}
 const bagCache={};function bagSprite(type){if(bagCache[type])return bagCache[type];const c=document.createElement('canvas');c.width=30*SPS;c.height=30*SPS;const g=c.getContext('2d');g.scale(SPS,SPS);
-if(type==='trash'){facet(g,15,19,9,9,8,'#2a2a2e');facet(g,15,8,3.5,3,5,'#2a2a2e');g.fillStyle='#f6cf26';g.beginPath();g.arc(15,19,4.3,0,7);g.fill();g.fillStyle='#2a2a2e';for(let i=0;i<3;i++){const a=i*2.094-1.57;g.beginPath();g.moveTo(15,19);g.arc(15,19,3.8,a-.5,a+.5);g.fill()}g.fillStyle='#f6cf26';g.beginPath();g.arc(15,19,.9,0,7);g.fill()}
+if(type==='trash'){facet(g,15,18,11,10,9,'#2a2a2e');facet(g,15,7,4,3,5,'#2a2a2e');g.fillStyle='#f6cf26';g.beginPath();g.arc(15,19,4.6,0,7);g.fill();g.fillStyle='#2a2a2e';for(let i=0;i<3;i++){const a=i*2.094-1.57;g.beginPath();g.moveTo(15,19);g.arc(15,19,3.8,a-.5,a+.5);g.fill()}g.fillStyle='#f6cf26';g.beginPath();g.arc(15,19,.9,0,7);g.fill()}
 else{facet(g,15,18,11,10,9,'#efe6c6');facet(g,15,7,4,3,5,'#efe6c6');fbox(g,11.5,8.5,7,2.2,'#d33a3a')}
 return bagCache[type]=c}
 function person(x,y,key,t,moving,carry,ent){const[p,q]=iso(x,y);shadow(x,y,11);
@@ -302,7 +309,7 @@ for(let i=0;i<3;i++){const x=DAW.x+20+i*42,y=DAW.y+15;L.push({d:x+y+30,f:()=>{bo
 {const x=DAW.x+20,y=DAW.y+60;L.push({d:x+y+40,f:()=>{box(x,y,110,40,34,'#2c6e9e','#1c4a6b','#245a80');const[a,b]=iso(x+55,y+20,35);X.fillStyle='#fff';X.font='bold 10px sans-serif';X.fillText('SEA-LAND',a,b+3)}})}
 {const x=RP.x+30,y=RP.y+20;L.push({d:x+y+30,f:()=>{box(x,y,80,24,22,'#c9b48a','#7a6a4c','#998563');person(x+40,y-8,'rp',t,false,0);const[a,b]=iso(x+20,y+12,23);X.fillStyle='#0f0';X.fillRect(a-6,b-8,12,8);}});}
 if(S.motor){const m=S.motor;L.push({d:m.x+m.y+20,f:()=>{shadow(m.x,m.y,26);box(m.x-20,m.y-14,40,28,22,'#5d7a8c');box(m.x-14,m.y-10,28,20,30,'#6f8fa3');box(m.x+20,m.y-4,8,8,26,'#b0b8c0');const[a,b]=iso(m.x,m.y,26);X.fillStyle='#889';X.beginPath();X.ellipse(a,b,10,5,0,0,7);X.fill();X.fillStyle='#f80';X.font='bold 11px sans-serif';X.fillText('⚙ DECON MOTOR',a,b-22);bar(a,b-14,m.prog/m.need,'#f80')}})}
-for(const it of S.items)L.push({d:it.x+it.y,f:()=>{const[a,b]=iso(it.x,it.y);shadow(it.x,it.y,8);const big=it.type==='laundry',z=big?38:32;X.drawImage(bagSprite(it.type),a-z/2,b-z+3-(it.z||0),z,z)}});
+for(const it of S.items)L.push({d:it.x+it.y,f:()=>{const[a,b]=iso(it.x,it.y);shadow(it.x,it.y,8);const z=38;X.drawImage(bagSprite(it.type),a-z/2,b-z+3-(it.z||0),z,z)}});
 {const T=TENT;L.push({d:T.x+T.w+T.y+T.h-30,f:()=>{X.globalAlpha=.8;box(T.x,T.y,T.w,T.h,6,'#d9d2b0');X.globalAlpha=.55;box(T.x,T.y,T.w,4,40,'#f2e65a');box(T.x,T.y,4,T.h,40,'#f2e65a');box(T.x+T.w-4,T.y,4,T.h,40,'#e0d040');X.globalAlpha=1;const[a,b]=iso(T.x+T.w/2,T.y+T.h/2,50);X.font='bold 12px sans-serif';X.fillStyle=S.tent?'#fc0':'#ccc';X.fillText(S.tent?(S.inTentDone?'⛺ DONE → step out to doff':'⛺ TENT JOB '+Math.round(S.tent.prog/S.tent.need*100)+'%'):'⛺ Containment tent',a,b)}})}
 if(S.hp){const h=S.hp;L.push({d:h.x+h.y,f:()=>{const[a,b]=iso(h.x,h.y,4);const pu=.5+.5*Math.sin(t*10);X.fillStyle=`rgba(255,60,220,${.25+.25*pu})`;X.beginPath();X.arc(a,b,14+6*pu,0,7);X.fill();X.fillStyle='#fff';X.beginPath();X.arc(a,b,3,0,7);X.fill()}})}
 if(S.buddy){const B=S.buddy;L.push({d:B.x+B.y,f:()=>{person(B.x,B.y,'buddy',t+.3,Math.hypot(B.vx,B.vy)>10,0,B);if(B.carry){const[a,b]=iso(B.x,B.y);X.drawImage(bagSprite(B.carry),a-14,b-118,28,28)}}})}
